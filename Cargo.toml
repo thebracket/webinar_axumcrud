@@ -1,0 +1,11 @@
+[package]
+name = "webinar_axumcrud"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.75"
+dotenv = "0.15.0"
+serde = { version = "1.0.188", features = ["derive"] }
+sqlx = { version = "0.7.2", features = ["runtime-tokio", "sqlite"] }
+tokio = { version = "1.32.0", features = ["full"] }
