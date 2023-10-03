@@ -29,8 +29,8 @@ async fn main() -> Result<()> {
     // Initialize the Axum routing service
     let app = router(connection_pool);
 
-    // Define the address to listen on
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
+    // Define the address to listen on (everything)
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
 
     // Start the server
     axum::Server::bind(&addr)
