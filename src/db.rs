@@ -10,15 +10,15 @@ use sqlx::{FromRow, Row, SqlitePool};
 /// Represents a book, taken from the books table in SQLite.
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Book {
-    // The book's primary key ID
+    /// The book's primary key ID
     pub id: i32,
-    // The book's title
+    /// The book's title
     pub title: String,
-    // The book's author (surname, lastname - not enforced)
+    /// The book's author (surname, lastname - not enforced)
     pub author: String,
 }
 
-/// Create a database conncetion pool. Run any migrations.
+/// Create a database connection pool. Run any migrations.
 ///
 /// ## Returns
 /// * A ready-to-use connection pool.

@@ -6,3 +6,6 @@ CREATE TABLE books (
 
 INSERT INTO books (title, author) VALUES ('Hands-on Rust', 'Wolverson, Herbert');
 INSERT INTO books (title, author) VALUES ('Rust Brain Teasers', 'Wolverson, Herbert');
+
+
+
