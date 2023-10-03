@@ -4,11 +4,13 @@
 //! scratch on each start-up.
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Row, SqlitePool};
+use tokio::sync::{Mutex, RwLock};
 
 /// Represents a book, taken from the books table in SQLite.
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct Book {
     /// The book's primary key ID
     pub id: i32,
@@ -17,6 +19,35 @@ pub struct Book {
     /// The book's author (surname, lastname - not enforced)
     pub author: String,
 }
+
+struct BookCache {
+    all_books: RwLock<Option<Vec<Book>>>,
+}
+
+impl BookCache {
+    fn new() -> Self {
+        Self {
+            all_books: RwLock::new(None),
+        }
+    }
+
+    async fn all_books(&self) -> Option<Vec<Book>> {
+        let lock = self.all_books.read().await;
+        lock.clone()
+    }
+
+    async fn refresh(&self, books: Vec<Book>) {
+        let mut lock = self.all_books.write().await;
+        *lock = Some(books);
+    }
+
+    async fn invalidate(&self) {
+        let mut lock = self.all_books.write().await;
+        *lock = None;
+    }
+}
+
+static CACHE: Lazy<BookCache> = Lazy::new(BookCache::new);
 
 /// Create a database connection pool. Run any migrations.
 ///
@@ -37,11 +68,15 @@ pub async fn init_db() -> Result<SqlitePool> {
 /// ## Returns
 /// * A vector of books, or an error.
 pub async fn all_books(connection_pool: &SqlitePool) -> Result<Vec<Book>> {
-    Ok(
-        sqlx::query_as::<_, Book>("SELECT * FROM books ORDER BY title,author")
+    if let Some(all_books) = CACHE.all_books().await {
+        Ok(all_books)
+    } else {
+        let books = sqlx::query_as::<_, Book>("SELECT * FROM books ORDER BY title,author")
             .fetch_all(connection_pool)
-            .await?,
-    )
+            .await?;
+        CACHE.refresh(books.clone()).await;
+        Ok(books)
+    }
 }
 
 /// Retrieves a single book, by ID
@@ -72,14 +107,14 @@ pub async fn add_book<S: ToString>(
 ) -> Result<i32> {
     let title = title.to_string();
     let author = author.to_string();
-    Ok(
-        sqlx::query("INSERT INTO books (title, author) VALUES ($1, $2) RETURNING id")
-            .bind(title)
-            .bind(author)
-            .fetch_one(connection_pool)
-            .await?
-            .get(0),
-    )
+    let id = sqlx::query("INSERT INTO books (title, author) VALUES ($1, $2) RETURNING id")
+        .bind(title)
+        .bind(author)
+        .fetch_one(connection_pool)
+        .await?
+        .get(0);
+    CACHE.invalidate().await;
+    Ok(id)
 }
 
 /// Update a book
@@ -95,6 +130,7 @@ pub async fn update_book(connection_pool: &SqlitePool, book: &Book) -> Result<()
         .bind(&book.id)
         .execute(connection_pool)
         .await?;
+    CACHE.invalidate().await;
     Ok(())
 }
 
@@ -108,6 +144,7 @@ pub async fn delete_book(connection_pool: &SqlitePool, id: i32) -> Result<()> {
         .bind(id)
         .execute(connection_pool)
         .await?;
+    CACHE.invalidate().await;
     Ok(())
 }
 
