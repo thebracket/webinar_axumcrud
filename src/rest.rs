@@ -1,9 +1,9 @@
-use axum::http::StatusCode;
-use axum::{Extension, Json, Router};
+use crate::db::{all_books, book_by_id, Book};
 use axum::extract::Path;
+use axum::http::StatusCode;
 use axum::routing::{delete, get, patch, post};
+use axum::{Extension, Json, Router};
 use sqlx::SqlitePool;
-use crate::db::{all_books, Book, book_by_id};
 
 /// Build the books REST service.
 /// Placing it in its own module with a single service export
@@ -44,7 +44,7 @@ async fn get_all_books(
 /// Either a 500 status code, or a JSON encoded book.
 async fn get_book(
     Extension(cnn): Extension<SqlitePool>,
-    Path(id): Path<i32>
+    Path(id): Path<i32>,
 ) -> Result<Json<Book>, StatusCode> {
     if let Ok(book) = book_by_id(&cnn, id).await {
         Ok(Json(book))
@@ -60,7 +60,7 @@ async fn get_book(
 /// * A Json-encoded book extracted from the post body.
 async fn add_book(
     Extension(cnn): Extension<SqlitePool>,
-    book: Json<Book>
+    book: Json<Book>,
 ) -> Result<Json<i32>, StatusCode> {
     if let Ok(new_id) = crate::db::add_book(&cnn, &book.title, &book.author).await {
         Ok(Json(new_id))
@@ -74,10 +74,7 @@ async fn add_book(
 /// ## Arguments
 /// * `Extension(cnn)` - dependency injected by Axum from the database layer.
 /// * `book` - JSON encoded book to update, from the patch body.
-async fn update_book(
-    Extension(cnn): Extension<SqlitePool>,
-    book: Json<Book>
-) -> StatusCode {
+async fn update_book(Extension(cnn): Extension<SqlitePool>, book: Json<Book>) -> StatusCode {
     if crate::db::update_book(&cnn, &book).await.is_ok() {
         StatusCode::OK
     } else {
@@ -90,17 +87,13 @@ async fn update_book(
 /// ## Arguments
 /// * `Extension(cnn)` - dependency injected by Axum from the database layer.
 /// * `id` of the book to delete, extracted from the URL of the delete call.
-async fn delete_book(
-    Extension(cnn): Extension<SqlitePool>,
-    Path(id) : Path<i32>
-) -> StatusCode {
+async fn delete_book(Extension(cnn): Extension<SqlitePool>, Path(id): Path<i32>) -> StatusCode {
     if crate::db::delete_book(&cnn, id).await.is_ok() {
         StatusCode::OK
     } else {
         StatusCode::SERVICE_UNAVAILABLE
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -138,12 +131,9 @@ mod test {
         let new_book = Book {
             id: -1,
             title: "Test POST Book".to_string(),
-            author: "Test POST Author".to_string()
+            author: "Test POST Author".to_string(),
         };
-        let res = client.post("/books")
-            .json(&new_book)
-            .send()
-            .await;
+        let res = client.post("/books").json(&new_book).send().await;
         assert_eq!(res.status(), StatusCode::OK);
         let new_id: i32 = res.json().await;
         assert!(new_id > 0);
@@ -173,23 +163,20 @@ mod test {
         let new_book = Book {
             id: -1,
             title: "Delete me".to_string(),
-            author: "Delete me".to_string()
+            author: "Delete me".to_string(),
         };
-        let new_id: i32 = client.post("/books")
+        let new_id: i32 = client
+            .post("/books")
             .json(&new_book)
             .send()
             .await
             .json()
             .await;
 
-        let res = client.delete(&format!("/books/{new_id}"))
-            .send()
-            .await;
+        let res = client.delete(&format!("/books/{new_id}")).send().await;
         assert_eq!(res.status(), StatusCode::OK);
 
         let all_books: Vec<Book> = client.get("/books").send().await.json().await;
-        assert!(
-            all_books.iter().find(|b| b.id == new_id).is_none()
-        )
+        assert!(all_books.iter().find(|b| b.id == new_id).is_none())
     }
 }

@@ -1,11 +1,11 @@
 mod db;
 mod rest;
 
-use std::net::SocketAddr;
 use crate::db::init_db;
 use anyhow::Result;
 use axum::{Extension, Router};
 use sqlx::SqlitePool;
+use std::net::SocketAddr;
 
 /// Build the overall web service router.
 /// Constructing the router in a function makes it easy to re-use in unit tests.
@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     let app = router(connection_pool);
 
     // Define the address to listen on
-    let addr = SocketAddr::from(([127,0,0,1], 3001));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
 
     // Start the server
     axum::Server::bind(&addr)
