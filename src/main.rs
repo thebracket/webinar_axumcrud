@@ -1,5 +1,6 @@
 mod db;
 mod rest;
+mod view;
 
 use crate::db::init_db;
 use anyhow::Result;
@@ -14,6 +15,8 @@ fn router(connection_pool: SqlitePool) -> Router {
         // Nest service allows you to attach another router to a URL base.
         // "/" inside the service will be "/books" to the outside world.
         .nest_service("/books", rest::books_service())
+        // Add the web view
+        .nest_service("/", view::view_service())
         // Add the connection pool as a "layer", available for dependency injection.
         .layer(Extension(connection_pool))
 }

@@ -1,8 +1,8 @@
 use crate::db::{all_books, book_by_id, Book};
 use axum::extract::Path;
 use axum::http::StatusCode;
-use axum::routing::{delete, get, patch, post};
-use axum::{Extension, Json, Router};
+use axum::routing::{delete, get, post, put};
+use axum::{Extension, extract, Json, Router};
 use sqlx::SqlitePool;
 
 /// Build the books REST service.
@@ -12,9 +12,9 @@ pub fn books_service() -> Router {
     Router::new()
         .route("/", get(get_all_books))
         .route("/:id", get(get_book))
-        .route("/", post(add_book))
-        .route("/", patch(update_book))
-        .route("/:id", delete(delete_book))
+        .route("/add", post(add_book))
+        .route("/edit", put(update_book))
+        .route("/delete/:id", delete(delete_book))
 }
 
 /// Wrap the db layer in a GET request, using Axum's built-in JSON support.
@@ -60,7 +60,7 @@ async fn get_book(
 /// * A Json-encoded book extracted from the post body.
 async fn add_book(
     Extension(cnn): Extension<SqlitePool>,
-    book: Json<Book>,
+    extract::Json(book): extract::Json<Book>,
 ) -> Result<Json<i32>, StatusCode> {
     if let Ok(new_id) = crate::db::add_book(&cnn, &book.title, &book.author).await {
         Ok(Json(new_id))
@@ -74,7 +74,10 @@ async fn add_book(
 /// ## Arguments
 /// * `Extension(cnn)` - dependency injected by Axum from the database layer.
 /// * `book` - JSON encoded book to update, from the patch body.
-async fn update_book(Extension(cnn): Extension<SqlitePool>, book: Json<Book>) -> StatusCode {
+async fn update_book(
+    Extension(cnn): Extension<SqlitePool>,
+    extract::Json(book): extract::Json<Book>
+) -> StatusCode {
     if crate::db::update_book(&cnn, &book).await.is_ok() {
         StatusCode::OK
     } else {
@@ -133,7 +136,7 @@ mod test {
             title: "Test POST Book".to_string(),
             author: "Test POST Author".to_string(),
         };
-        let res = client.post("/books").json(&new_book).send().await;
+        let res = client.post("/books/add").json(&new_book).send().await;
         assert_eq!(res.status(), StatusCode::OK);
         let new_id: i32 = res.json().await;
         assert!(new_id > 0);
@@ -151,7 +154,7 @@ mod test {
         let client = setup_tests().await;
         let mut book1: Book = client.get("/books/1").send().await.json().await;
         book1.title = "Updated book".to_string();
-        let res = client.patch("/books").json(&book1).send().await;
+        let res = client.put("/books/edit").json(&book1).send().await;
         assert_eq!(res.status(), StatusCode::OK);
         let book2: Book = client.get("/books/1").send().await.json().await;
         assert_eq!(book1.title, book2.title);
@@ -166,14 +169,14 @@ mod test {
             author: "Delete me".to_string(),
         };
         let new_id: i32 = client
-            .post("/books")
+            .post("/books/add")
             .json(&new_book)
             .send()
             .await
             .json()
             .await;
 
-        let res = client.delete(&format!("/books/{new_id}")).send().await;
+        let res = client.delete(&format!("/books/delete/{new_id}")).send().await;
         assert_eq!(res.status(), StatusCode::OK);
 
         let all_books: Vec<Book> = client.get("/books").send().await.json().await;
