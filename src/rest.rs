@@ -2,7 +2,7 @@ use crate::db::{all_books, book_by_id, Book};
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::routing::{delete, get, post, put};
-use axum::{Extension, extract, Json, Router};
+use axum::{extract, Extension, Json, Router};
 use sqlx::SqlitePool;
 
 /// Build the books REST service.
@@ -76,7 +76,7 @@ async fn add_book(
 /// * `book` - JSON encoded book to update, from the patch body.
 async fn update_book(
     Extension(cnn): Extension<SqlitePool>,
-    extract::Json(book): extract::Json<Book>
+    extract::Json(book): extract::Json<Book>,
 ) -> StatusCode {
     if crate::db::update_book(&cnn, &book).await.is_ok() {
         StatusCode::OK
@@ -176,7 +176,10 @@ mod test {
             .json()
             .await;
 
-        let res = client.delete(&format!("/books/delete/{new_id}")).send().await;
+        let res = client
+            .delete(&format!("/books/delete/{new_id}"))
+            .send()
+            .await;
         assert_eq!(res.status(), StatusCode::OK);
 
         let all_books: Vec<Book> = client.get("/books").send().await.json().await;
