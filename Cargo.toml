@@ -5,7 +5,11 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
+axum = "0.6.20"
 dotenv = "0.15.0"
 serde = { version = "1.0.188", features = ["derive"] }
 sqlx = { version = "0.7.2", features = ["runtime-tokio", "sqlite"] }
 tokio = { version = "1.32.0", features = ["full"] }
+
+[dev-dependencies]
+axum-test-helper = "0.3.0"

@@ -160,7 +160,7 @@ mod test {
         dotenv::dotenv().ok();
         let cnn = init_db().await.unwrap();
         let new_id = add_book(&cnn, "DeleteMe", "Test Author").await.unwrap();
-        let new_book = book_by_id(&cnn, new_id).await.unwrap();
+        let _new_book = book_by_id(&cnn, new_id).await.unwrap();
         delete_book(&cnn, new_id).await.unwrap();
         let all_books = all_books(&cnn).await.unwrap();
         assert!(all_books.iter().find(|b| b.title == "DeleteMe").is_none());
